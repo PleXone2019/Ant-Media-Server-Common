@@ -561,6 +561,8 @@ public class Mp4Muxer extends Muxer {
 	@Override
 	public synchronized void writePacket(AVPacket pkt, AVStream stream) {
 
+
+		
 		if (!firstKeyFrameReceivedChecked && stream.codec().codec_type() == AVMEDIA_TYPE_VIDEO) {
 			int keyFrame = pkt.flags() & AV_PKT_FLAG_KEY;
 			if (keyFrame == 1) {
@@ -574,7 +576,7 @@ public class Mp4Muxer extends Muxer {
 		}
 
 		if (!isRunning.get() || !registeredStreamIndexList.contains(pkt.stream_index())) {
-			logger.trace("not registered stream index for stream: {}", streamId);
+			logger.info("not registered stream index for stream: {}", streamId);
 			return;
 		}
 		int streamIndex;
@@ -603,14 +605,20 @@ public class Mp4Muxer extends Muxer {
 	 */
 	@Override
 	public synchronized void writePacket(AVPacket pkt) {
+		logger.info("****0 pkt size: {} pkt position {} pkt limit: {} ",pkt.size(), pkt.position(), pkt.limit());
+
+
 		if (!isRunning.get() || !registeredStreamIndexList.contains(pkt.stream_index())) {
-			logger.trace("not registered stream index for {}", streamId);
+			logger.info("not registered stream index for {}", streamId);
 			return;
 		}
-
 		AVStream outStream = outputFormatContext.streams(pkt.stream_index());
 		AVRational codecTimebase = codecTimeBaseMap.get(pkt.stream_index());
+		logger.info("****1 pkt size: {} pkt position {} pkt limit: {} ",pkt.size(), pkt.position(), pkt.limit());
+
 		writePacket(pkt, codecTimebase,  outStream.time_base(), outStream.codecpar().codec_type()); 
+		
+
 
 	}
 
@@ -629,24 +637,31 @@ public class Mp4Muxer extends Muxer {
 	 */
 	private void writePacket(AVPacket pkt, AVRational inputTimebase, AVRational outputTimebase, int codecType) 
 	{
+		
+		logger.info("****2 pkt size: {} pkt position {} pkt limit: {}",pkt.size(), pkt.position(),pkt.limit());
+
 		AVRational timeBase = new AVRational();
 		timeBase.num(1).den(1000);
 		long packetTime = av_rescale_q(pkt.pts(), inputTimebase, timeBase);
 		if(this.startTime > startTime+packetTime){
 			return;
 		}
+		logger.info("****3 pkt size: {} pkt position {} pkt limit: {}",pkt.size(), pkt.position(),pkt.limit());
 
 		AVFormatContext context = getOutputFormatContext();
 		if (context == null || context.pb() == null) {
 			logger.warn("output context.pb field is null for stream: {}", streamId);
 			return;
 		}
+		
+
 		long pts = pkt.pts();
 		long dts = pkt.dts();
 		long duration = pkt.duration();
 		long pos = pkt.pos();
 
-
+		logger.info("****4 pkt size: {} pkt position {} pkt limit: {}",pkt.size(), pkt.position(), pkt.limit());
+		
 		pkt.pts(av_rescale_q_rnd(pkt.pts(), inputTimebase, outputTimebase, AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
 		pkt.dts(av_rescale_q_rnd(pkt.dts(), inputTimebase, outputTimebase, AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
 		pkt.duration(av_rescale_q(pkt.duration(), inputTimebase, outputTimebase));
@@ -654,6 +669,8 @@ public class Mp4Muxer extends Muxer {
 
 		if (codecType == AVMEDIA_TYPE_AUDIO) 
 		{
+			logger.info("****audio 5");
+
 			int ret = av_packet_ref(tmpPacket , pkt);
 			if (ret < 0) {
 				logger.error("Cannot copy audio packet for {}", streamId);
@@ -696,38 +713,60 @@ public class Mp4Muxer extends Muxer {
 		}
 		else if (codecType == AVMEDIA_TYPE_VIDEO) 
 		{
+			
+			logger.info("****video 5   pkt size: {} pkt position {} pkt limit: {}", pkt.size(), pkt.position(), pkt.limit());
+
+
 			int ret = av_packet_ref(tmpPacket , pkt);
 			if (ret < 0) {
 				logger.error("Cannot copy video packet for {}", streamId);
 				return;
 			}
+			logger.info("****video 6  pkt size: {} pkt position {} pkt limit: {}",pkt.size(), pkt.position(), pkt.limit());
 
 			if (bsfExtractdataContext != null) {
 				ret = av_bsf_send_packet(bsfExtractdataContext, tmpPacket);
 				if (ret < 0)
 					return;
+				logger.info("****video 7");
 
 				while (av_bsf_receive_packet(bsfExtractdataContext, tmpPacket) == 0) 
 				{
+					logger.info("****video 8");
+
 					ret = av_write_frame(context, tmpPacket);
+					logger.info("****video 9");
+
 					if (ret < 0 && logger.isWarnEnabled()) {
 						byte[] data = new byte[2048];
 						av_strerror(ret, data, data.length);
 						logger.warn("cannot write video frame to muxer({}) av_bsf_receive_packet. Error is {} ", file.getName(), new String(data, 0, data.length));
+					
 					}
 
 				}
 			}
 			else {
 				ret = av_write_frame(context, pkt);
+				logger.info("****video 10  pkt size: {} pkt position {} ret value: {} pkt limit: {} ",pkt.size(), pkt.position(), ret, pkt.limit());
+
+
 				if (ret < 0 && logger.isWarnEnabled()) {
 					byte[] data = new byte[2048];
 					av_strerror(ret, data, data.length);
+					
 					logger.warn("cannot write video frame to muxer({}) not audio. Error is {} ", file.getName(), new String(data, 0, data.length));
+					logger.info("****video 11");
+
 				}
+				
 			}
-			
+			logger.info("****video 12");
+
 			av_packet_unref(tmpPacket);
+			
+			logger.info("****video 13");
+
 
 		}
 		else {

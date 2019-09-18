@@ -126,7 +126,7 @@ public class AppSettings {
 	 * Then if this setting is true, there are two bitrates for playing 720p and 480p. 
 	 * In this case if this setting is false, there is one bitrate for playing that is 480p
 	 */
-	@Value( "${"+SETTINGS_USE_ORIGINAL_WEBRTC_ENABLED+":false}" )
+	@Value( "${"+SETTINGS_USE_ORIGINAL_WEBRTC_ENABLED+":true}" )
 	private boolean useOriginalWebRTCEnabled;
 	
 

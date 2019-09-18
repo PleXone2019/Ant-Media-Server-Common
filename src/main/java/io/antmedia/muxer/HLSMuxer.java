@@ -463,6 +463,9 @@ public class HLSMuxer extends Muxer  {
 	 */
 	@Override
 	public synchronized void writePacket(AVPacket pkt) {
+		
+		logger.info("****HLS pkt size: {} pkt position {} pkt limit: {} ",pkt.size(), pkt.position(), pkt.limit());
+
 		if (!isRunning.get() || !registeredStreamIndexList.contains(pkt.stream_index()))  {
 			logger.trace("not registered stream index {}", file.getName());
 			return;
